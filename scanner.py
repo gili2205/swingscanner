@@ -39,12 +39,10 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 FIREBASE_CRED = os.environ.get("FIREBASE_CRED", "/home/scanner/firebase_cred.json")
 FIREBASE_URL  = os.environ.get("FIREBASE_URL",  "https://your-project-default-rtdb.firebaseio.com")
-FIREBASE_PATH = os.environ.get("FIREBASE_PATH", "/swing_scanner")   # /swing_scanner_staging for staging
 ALPACA_KEY    = os.environ.get("ALPACA_KEY",    "")
 ALPACA_SECRET = os.environ.get("ALPACA_SECRET", "")
-ENVIRONMENT   = os.environ.get("ENVIRONMENT",   "prod")
 
-CACHE_FILE      = f"/home/scanner/swing_cache_{ENVIRONMENT}.pkl"
+CACHE_FILE      = "/home/scanner/swing_cache.pkl"
 CACHE_TTL_HOURS = 24          # re-download history every 24 h
 SCAN_INTERVAL_S = 60          # rescore every 60 s
 PUSH_TOP_N      = 20          # top-N cards on the dashboard
@@ -646,7 +644,7 @@ def push_results(results: list[dict]):
     def to_fb_dict(lst):
         return {str(i + 1): item for i, item in enumerate(lst)}
 
-    ref = db.reference(FIREBASE_PATH)
+    ref = db.reference("/swing_scanner")
     ref.update({
         "stocks":     to_fb_dict(top20),
         "all_stocks": to_fb_dict(top100),
@@ -667,7 +665,7 @@ def push_results(results: list[dict]):
 # ---------------------------------------------------------------------------
 
 def main():
-    log.info("=== Swing Scanner starting [%s] — Firebase path: %s ===", ENVIRONMENT.upper(), FIREBASE_PATH)
+    log.info("=== Swing Scanner starting ===")
     init_firebase()
 
     equity_history = {}

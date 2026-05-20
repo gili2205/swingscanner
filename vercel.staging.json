@@ -1,8 +1,0 @@
-{
-  "builds": [{"src": "app.py", "use": "@vercel/python"}],
-  "routes": [{"src": "/(.*)", "dest": "app.py"}],
-  "env": {
-    "ENVIRONMENT": "staging",
-    "FIREBASE_PATH": "/swing_scanner_staging"
-  }
-}

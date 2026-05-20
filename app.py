@@ -37,8 +37,7 @@ FIREBASE_CFG = {
     "appId":       os.environ.get("FIREBASE_APP_ID",      ""),
 }
 
-FIREBASE_PATH = os.environ.get("FIREBASE_PATH", "/swing_scanner")
-ENVIRONMENT   = os.environ.get("ENVIRONMENT",   "prod")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod")
 
 # ---------------------------------------------------------------------------
 # Helpers (shared with scanner.py logic, duplicated here to keep app.py standalone)
@@ -167,10 +166,8 @@ def detail(ticker: str):
 @app.route("/")
 def index():
     import json
-    fb_cfg_json    = json.dumps(FIREBASE_CFG)
-    firebase_path  = FIREBASE_PATH
-    env_label      = ENVIRONMENT.upper()
-    is_staging     = ENVIRONMENT == "staging"
+    fb_cfg_json = json.dumps(FIREBASE_CFG)
+    is_staging  = ENVIRONMENT == "staging"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -396,8 +393,7 @@ body{{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacS
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 // ---- Firebase init ----
-const FB_CFG      = {fb_cfg_json};
-const FB_PATH     = '{firebase_path}';
+const FB_CFG = {fb_cfg_json};
 firebase.initializeApp(FB_CFG);
 const database = firebase.database();
 
@@ -411,7 +407,7 @@ let detailCache  = {{}};
 // ---- Firebase listeners ----
 function startListeners() {{
   // Top-20 live cards
-  database.ref(FB_PATH + '/stocks').on('value', snap => {{
+  database.ref('/swing_scanner/stocks').on('value', snap => {{
     const data = snap.val();
     if (!data) return;
     Object.assign(allData, data);
@@ -420,7 +416,7 @@ function startListeners() {{
   }});
 
   // Full list for filtered views
-  database.ref(FB_PATH + '/all_stocks').on('value', snap => {{
+  database.ref('/swing_scanner/all_stocks').on('value', snap => {{
     const data = snap.val();
     if (!data) return;
     allData = data;
@@ -428,7 +424,7 @@ function startListeners() {{
   }});
 
   // Metadata
-  database.ref(FB_PATH + '/metadata').on('value', snap => {{
+  database.ref('/swing_scanner/metadata').on('value', snap => {{
     const m = snap.val();
     if (!m) return;
     document.getElementById('hdr-updated').textContent =

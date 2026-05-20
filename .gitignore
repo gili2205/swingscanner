@@ -1,7 +1,6 @@
-.env.staging
-.env.prod
+.env
+firebase_cred*.json
 __pycache__/
 *.pyc
 *.pkl
-firebase_cred*.json
 .DS_Store

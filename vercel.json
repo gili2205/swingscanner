@@ -2,7 +2,6 @@
   "builds": [{"src": "app.py", "use": "@vercel/python"}],
   "routes": [{"src": "/(.*)", "dest": "app.py"}],
   "env": {
-    "ENVIRONMENT": "prod",
-    "FIREBASE_PATH": "/swing_scanner"
+    "ENVIRONMENT": "prod"
   }
 }

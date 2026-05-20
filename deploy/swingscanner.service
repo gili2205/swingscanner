@@ -1,11 +1,11 @@
 [Unit]
-Description=Swing Scanner — PRODUCTION
+Description=Swing Scanner
 After=network.target
 
 [Service]
 User=scanner
 WorkingDirectory=/home/scanner
-EnvironmentFile=/home/scanner/.env.prod
+EnvironmentFile=/home/scanner/.env
 ExecStart=/usr/bin/python3 /home/scanner/scanner.py
 Restart=always
 RestartSec=15
