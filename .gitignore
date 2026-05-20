@@ -3,5 +3,5 @@
 __pycache__/
 *.pyc
 *.pkl
-*.json
+firebase_cred*.json
 .DS_Store
