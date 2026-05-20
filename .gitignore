@@ -1,0 +1,7 @@
+.env.staging
+.env.prod
+__pycache__/
+*.pyc
+*.pkl
+*.json
+.DS_Store

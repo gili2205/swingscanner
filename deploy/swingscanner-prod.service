@@ -1,0 +1,16 @@
+[Unit]
+Description=Swing Scanner — PRODUCTION
+After=network.target
+
+[Service]
+User=scanner
+WorkingDirectory=/home/scanner
+EnvironmentFile=/home/scanner/.env.prod
+ExecStart=/usr/bin/python3 /home/scanner/scanner.py
+Restart=always
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
