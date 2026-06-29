@@ -3,7 +3,8 @@ Description=Swing Scanner (pre-breakout)
 After=network.target
 
 [Service]
-User=scanner
+# Runs as root (these VMs have no dedicated 'scanner' user; /home/scanner
+# is just the working dir). Matches the original stockscanner service.
 WorkingDirectory=/home/scanner
 EnvironmentFile=/home/scanner/.env
 ExecStart=/home/scanner/venv/bin/python3 /home/scanner/scanner.py

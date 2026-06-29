@@ -6,18 +6,17 @@ set -e
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 HOME_DIR=/home/scanner
 
-echo "==> Creating 'scanner' user (if missing)..."
-id -u scanner &>/dev/null || useradd -m -s /bin/bash scanner
+# These VMs run the service as root and use /home/scanner only as a working
+# directory — there is no dedicated 'scanner' user.
 
-echo "==> Creating Python venv at $HOME_DIR/venv ..."
+echo "==> Creating Python venv at $HOME_DIR/venv (if missing) ..."
 apt-get update -qq && apt-get install -y python3-venv python3-pip
-sudo -u scanner python3 -m venv "$HOME_DIR/venv"
-sudo -u scanner "$HOME_DIR/venv/bin/pip" install --upgrade pip
-sudo -u scanner "$HOME_DIR/venv/bin/pip" install -r "$REPO_DIR/requirements.txt"
+[ -x "$HOME_DIR/venv/bin/python3" ] || python3 -m venv "$HOME_DIR/venv"
+"$HOME_DIR/venv/bin/pip" install --upgrade pip
+"$HOME_DIR/venv/bin/pip" install -r "$REPO_DIR/requirements.txt"
 
 echo "==> Installing scanner.py ..."
 cp "$REPO_DIR/scanner.py" "$HOME_DIR/scanner.py"
-chown scanner:scanner "$HOME_DIR/scanner.py"
 
 echo "==> Installing systemd service ..."
 cp "$REPO_DIR/deploy/swingscanner.service" /etc/systemd/system/
