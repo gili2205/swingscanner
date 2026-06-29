@@ -1,12 +1,12 @@
 [Unit]
-Description=Swing Scanner
+Description=Swing Scanner (pre-breakout)
 After=network.target
 
 [Service]
 User=scanner
 WorkingDirectory=/home/scanner
 EnvironmentFile=/home/scanner/.env
-ExecStart=/usr/bin/python3 /home/scanner/scanner.py
+ExecStart=/home/scanner/venv/bin/python3 /home/scanner/scanner.py
 Restart=always
 RestartSec=15
 StandardOutput=journal

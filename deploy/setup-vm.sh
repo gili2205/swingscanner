@@ -1,34 +1,38 @@
 #!/bin/bash
-# Run this once on the GCP VM to install dependencies and register both services.
-# Usage: bash setup-vm.sh
-
+# Run once on the GCP VM to install the swing scanner as a systemd service.
+# Usage:  sudo bash deploy/setup-vm.sh
 set -e
 
-echo "==> Installing Python dependencies..."
-pip3 install flask firebase-admin yfinance pandas numpy requests pytz gunicorn
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+HOME_DIR=/home/scanner
 
-echo "==> Creating scanner user (if not exists)..."
+echo "==> Creating 'scanner' user (if missing)..."
 id -u scanner &>/dev/null || useradd -m -s /bin/bash scanner
 
-echo "==> Copying files..."
-cp scanner.py         /home/scanner/scanner.py
-cp .env.staging       /home/scanner/.env.staging
-cp .env.prod          /home/scanner/.env.prod
-cp deploy/swingscanner-staging.service /etc/systemd/system/
-cp deploy/swingscanner-prod.service    /etc/systemd/system/
+echo "==> Creating Python venv at $HOME_DIR/venv ..."
+apt-get update -qq && apt-get install -y python3-venv python3-pip
+sudo -u scanner python3 -m venv "$HOME_DIR/venv"
+sudo -u scanner "$HOME_DIR/venv/bin/pip" install --upgrade pip
+sudo -u scanner "$HOME_DIR/venv/bin/pip" install -r "$REPO_DIR/requirements.txt"
+
+echo "==> Installing scanner.py ..."
+cp "$REPO_DIR/scanner.py" "$HOME_DIR/scanner.py"
+chown scanner:scanner "$HOME_DIR/scanner.py"
+
+echo "==> Installing systemd service ..."
+cp "$REPO_DIR/deploy/swingscanner.service" /etc/systemd/system/
+systemctl daemon-reload
 
 echo ""
-echo "==> MANUAL STEPS REQUIRED before starting services:"
-echo "    1. Upload firebase_cred_staging.json → /home/scanner/firebase_cred_staging.json"
-echo "    2. Upload firebase_cred_prod.json    → /home/scanner/firebase_cred_prod.json"
-echo "    3. Fill in FILL_ME_IN values in /home/scanner/.env.staging and .env.prod"
-echo "       (FIREBASE_URL, FIREBASE_API_KEY, ALPACA_SECRET, etc.)"
+echo "==> MANUAL STEPS before starting the service:"
+echo "    1. Upload the Firebase admin key:"
+echo "         scp firebase_cred.json  VM:$HOME_DIR/firebase_cred.json"
+echo "    2. Create $HOME_DIR/.env from .env.example and fill in:"
+echo "         FIREBASE_CRED=$HOME_DIR/firebase_cred.json"
+echo "         FIREBASE_URL=https://<project>-default-rtdb.firebaseio.com"
+echo "         ALPACA_KEY / ALPACA_SECRET"
+echo "       chown scanner:scanner $HOME_DIR/.env"
 echo ""
-echo "    Then run:"
-echo "      sudo systemctl daemon-reload"
-echo "      sudo systemctl enable --now swingscanner-staging"
-echo "      sudo systemctl enable --now swingscanner-prod"
-echo ""
-echo "    Check logs:"
-echo "      journalctl -u swingscanner-staging -f"
-echo "      journalctl -u swingscanner-prod -f"
+echo "    Then start it:"
+echo "         sudo systemctl enable --now swingscanner"
+echo "         journalctl -u swingscanner -f"

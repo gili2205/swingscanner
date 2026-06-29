@@ -30,8 +30,13 @@ import firebase_admin
 from firebase_admin import credentials, db
 import yfinance as yf
 
+_handlers = [logging.StreamHandler()]   # journal captures stdout under systemd
+try:
+    _handlers.append(logging.FileHandler("/var/log/swingscanner.log"))
+except (PermissionError, FileNotFoundError):
+    pass   # not writable (e.g. local run) — stdout/journal only
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.FileHandler("/var/log/scanner.log"), logging.StreamHandler()])
+    handlers=_handlers)
 log = logging.getLogger(__name__)
 
 FIREBASE_URL  = os.environ["FIREBASE_URL"]
