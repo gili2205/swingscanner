@@ -236,7 +236,8 @@ def download_history(universe, resume=None):
                 save_cache(history, complete=False)   # checkpoint
             try:
                 ref.child('download_progress').set({'loaded':len(history),'total':len(all_tickers),
-                    'pct':round(len(history)/len(all_tickers)*100) if len(all_tickers)>0 else 0})
+                    'pct':round((i+1)/total*100) if total else 100,
+                    'ts':int(time.time())})
             except: pass
             time.sleep(0.5)
         except Exception as e:

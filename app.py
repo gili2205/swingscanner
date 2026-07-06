@@ -451,7 +451,12 @@ fdb.ref("/swing_scanner").on("value", function(snap) {{
   var duration = md.scan_duration_sec ? " ("+md.scan_duration_sec+"s)" : "";
   var scanned  = md.stocks_scanned||0;
 
-  if (scanned===0) setStatus("dl","Downloading market data\u2026");
+  // A fresh download_progress heartbeat means the scanner is busy fetching
+  // history (daily refresh / cold start) — show that instead of a stale alarm.
+  var dp = d.download_progress || {{}};
+  var dlActive = dp.ts && (Date.now()/1000 - dp.ts) < 300;
+  if (dlActive) setStatus("dl","Downloading market data \u2014 "+(dp.loaded||0).toLocaleString()+" stocks ("+(dp.pct||0)+"%) \u2014 scans resume when done",dp.pct||0,"","");
+  else if (scanned===0) setStatus("dl","Downloading market data\u2026");
   else if (age>warnThresh) setStatus("warn","Data is "+Math.round(age/60)+" min old"+scanTime,100,"","");
   else setStatus("ok","LIVE \u00b7 "+scanned.toLocaleString()+" stocks \u00b7 Updated "+age+"s ago"+scanTime+duration);
 
