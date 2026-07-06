@@ -444,11 +444,12 @@ fdb.ref("/swing_scanner").on("value", function(snap) {{
   var _n=new Date(),_h=(_n.getUTCHours()-4+24)%24,_d=_n.getUTCDay();
   var mktOpen=_d>=1&&_d<=5&&_h>=9&&_h<16;
   var warnThresh=mktOpen?180:3600;
+  var md = d.metadata || d;   // scanner writes stats under /metadata
   var dlPct=d.download_progress?d.download_progress.pct||0:0;
-  var age = d.last_updated_ts ? Math.round((Date.now()/1000-d.last_updated_ts)) : (d.last_updated ? Math.round((Date.now()-new Date(d.last_updated))/1000) : 0);
-  var scanTime = d.last_scan_time ? " \u00b7 "+d.last_scan_time : "";
-  var duration = d.scan_duration_sec ? " ("+d.scan_duration_sec+"s)" : "";
-  var scanned  = d.stocks_scanned||0;
+  var age = md.last_updated_ts ? Math.round((Date.now()/1000-md.last_updated_ts)) : (md.last_updated ? Math.round((Date.now()-new Date(md.last_updated))/1000) : 0);
+  var scanTime = md.last_scan_time ? " \u00b7 "+md.last_scan_time : "";
+  var duration = md.scan_duration_sec ? " ("+md.scan_duration_sec+"s)" : "";
+  var scanned  = md.stocks_scanned||0;
 
   if (scanned===0) setStatus("dl","Downloading market data\u2026");
   else if (age>warnThresh) setStatus("warn","Data is "+Math.round(age/60)+" min old"+scanTime,100,"","");
@@ -473,18 +474,18 @@ fdb.ref("/swing_scanner").on("value", function(snap) {{
     document.getElementById("m-pre").textContent   = _nBreakout;
     document.getElementById("m-flags").textContent = _nCrypto;
   }} else {{
-    document.getElementById("m-ready").textContent = d.primed_count || 0;
-    document.getElementById("m-watch").textContent = d.coiling_count || 0;
-    document.getElementById("m-pre").textContent   = d.breakout_count || 0;
-    document.getElementById("m-flags").textContent = d.crypto_count || 0;
+    document.getElementById("m-ready").textContent = md.primed_count || 0;
+    document.getElementById("m-watch").textContent = md.coiling_count || 0;
+    document.getElementById("m-pre").textContent   = md.breakout_count || 0;
+    document.getElementById("m-flags").textContent = md.crypto_count || 0;
   }}
-  if (d.last_updated) {{
-    var t = new Date(d.last_updated);
+  if (md.last_updated) {{
+    var t = new Date(md.last_updated);
     document.getElementById("m-time").textContent = t.toLocaleTimeString([],{{hour:"2-digit",minute:"2-digit"}});
   }}
-  if (d.session) document.getElementById("m-sess").textContent = d.session;
+  if (md.session) document.getElementById("m-sess").textContent = md.session;
 
-  var r=document.getElementById("regime"), dot=document.getElementById("dot"), sess=d.session||"";
+  var r=document.getElementById("regime"), dot=document.getElementById("dot"), sess=md.session||"";
   if      (sess.indexOf("Market Open")>=0)  {{ r.textContent="\u25cf Market Open";  r.className="regime open";   if(scanned>0) dot.className="dot g"; }}
   else if (sess.indexOf("Pre-Market")>=0)   {{ r.textContent="\u25d0 Pre-Market";   r.className="regime pre";    dot.className="dot a"; }}
   else if (sess.indexOf("After-Hours")>=0)  {{ r.textContent="\u25d1 After-Hours";  r.className="regime after";  dot.className="dot a"; }}
