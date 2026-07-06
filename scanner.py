@@ -693,6 +693,35 @@ def push_results(results, sess, scan_time, elapsed):
     log.info(f"Pushed: top20={top20_tickers} | PRIMED={metadata['primed_count']} "
              f"COILING={metadata['coiling_count']} | [{sess}] | {elapsed}s")
 
+# ── Picks history (feeds the Analytics tab) ──────────────────────────────────
+def log_history(results, now_et):
+    """After the close, record today's PRIMED/BREAKOUT signals once.
+    update_returns.py (nightly cron) fills in forward returns as they mature.
+    Writes are idempotent (set per date/ticker), so re-runs are safe."""
+    day = now_et.date().isoformat()
+    picks = [r for r in results if r["status"] in ("PRIMED", "BREAKOUT")
+             and not r.get("is_crypto")]
+    if not picks:
+        return
+    payload = {}
+    for r in picks:
+        payload[r["ticker"]] = {
+            "price":       r["price"],
+            "score":       r["score"],
+            "status":      r["status"],
+            "squeeze":     r["bb_squeeze_pct"],
+            "dryup":       r["dryup_ratio"],
+            "dist_pivot":  r["dist_to_pivot"],
+            "pivot":       r["pivot"],
+            "logged_at":   now_et.isoformat(),
+            "returns":     {},
+        }
+    try:
+        ref.child("history").child(day).update(payload)
+        log.info(f"History: logged {len(payload)} picks for {day}")
+    except Exception as e:
+        log.warning(f"History log failed: {e}")
+
 # ── Session helper ────────────────────────────────────────────────────────────
 def get_session():
     now_et = datetime.now(ET)
@@ -724,6 +753,7 @@ def main():
             full_fund_data[ticker] = _fund_file_cache[ticker]
 
     log.info(f"Pre-loaded fundamentals for {len(full_fund_data)} stocks from file cache")
+    last_history_date = None
 
     while True:
         try:
@@ -748,6 +778,11 @@ def main():
 
             if results:
                 push_results(results, sess, scan_time, elapsed)
+                # Log the day's signals once, right after the close
+                if (sess == "After-Hours" and now_et.weekday() < 5
+                        and last_history_date != now_et.date()):
+                    log_history(results, now_et)
+                    last_history_date = now_et.date()
             log.info("Next scan in 60s...")
             time.sleep(60)
 

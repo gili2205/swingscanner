@@ -151,6 +151,7 @@ body{{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacS
     <p>Scans NYSE + NASDAQ + Crypto &middot; BB Squeeze &middot; RVOL &middot; EMA Alignment &middot; RSI &middot; Updates every 60s</p>
   </div>
   <div class="hright">
+    <div class="nav-pills"><a class="nav-pill active" href="/">&#128202; Dashboard</a><a class="nav-pill" href="/analytics">&#128200; Analytics</a></div>
     <span class="ver" id="verspan">{ver}</span>
     <span class="regime closed" id="regime">&#9679; Connecting...</span>
   </div>
@@ -1211,6 +1212,124 @@ def index():
     return html
 
 
+
+
+
+
+# ── Analytics — picks history + forward returns ───────────────────────────────
+ANALYTICS_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Swing Scanner Analytics</title>
+<style>
+:root{--bg:#0f1117;--bg2:#1a1d26;--bg3:#22263a;--text:#e8eaf0;--muted:#8892a4;--border:#2a2f42;--green:#27ae60;--amber:#e67e22;--blue:#3498db;--red:#e74c3c;--gold:#f1c40f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.header h1{font-size:16px;font-weight:600;}
+.nav-pills{display:flex;gap:6px;}
+.nav-pill{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border);color:var(--muted);background:var(--bg3);}
+.nav-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 24px;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:22px;}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.scard h3{font-size:12px;letter-spacing:.5px;margin-bottom:10px;}
+.scard table{width:100%;font-size:12px;border-collapse:collapse;}
+.scard td,.scard th{padding:4px 6px;text-align:right;}
+.scard th{color:var(--muted);font-size:10px;text-transform:uppercase;}
+.scard td:first-child,.scard th:first-child{text-align:left;}
+.pos{color:var(--green);font-weight:600;}.neg{color:var(--red);font-weight:600;}.na{color:var(--muted);}
+.picks{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.picks table{width:100%;font-size:12px;border-collapse:collapse;}
+.picks th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.picks td{padding:7px 8px;border-bottom:1px solid #2a2f4233;}
+.badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;}
+.badge.PRIMED{background:#3d3611;color:var(--gold);}
+.badge.BREAKOUT{background:#1a3d2b;color:var(--green);}
+.empty{color:var(--muted);text-align:center;padding:60px 0;}
+.note{font-size:11px;color:var(--muted);margin:10px 2px 18px;}
+</style>
+</head>
+<body>
+__BANNER__
+<div class="header">
+  <h1>&#128200; Swing Scanner &mdash; Analytics</h1>
+  <div class="nav-pills"><a class="nav-pill" href="/">&#128202; Dashboard</a><a class="nav-pill active" href="/analytics">&#128200; Analytics</a></div>
+</div>
+<div class="wrap">
+  <div class="note">Every trading day after the close, the scanner logs its PRIMED and BREAKOUT signals here.
+  Forward returns fill in as they mature (1w = 5, 2w = 10, 1m = 21 trading days).
+  Backtest reference: PRIMED ~62% win at 1m, avg +2.4%.</div>
+  <div class="cards" id="cards"><div class="empty">Loading...</div></div>
+  <div class="picks"><table id="ptable"><thead>
+    <tr><th>Date</th><th>Ticker</th><th>Status</th><th>Score</th><th>Entry</th><th>1w</th><th>2w</th><th>1m</th></tr>
+  </thead><tbody id="pbody"><tr><td colspan="8" class="empty">Loading history...</td></tr></tbody></table></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+var CFG = __CFG__;
+firebase.initializeApp(CFG);
+var fdb = firebase.database();
+
+function fmt(v){ if(v==null) return '<span class="na">&mdash;</span>';
+  var c=v>=0?'pos':'neg'; return '<span class="'+c+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</span>'; }
+
+fdb.ref('/swing_scanner/history').once('value', function(snap){
+  var hist = snap.val() || {};
+  var rows = [];
+  Object.keys(hist).forEach(function(day){
+    var picks = hist[day]; if(!picks) return;
+    Object.keys(picks).forEach(function(tk){
+      var p = picks[tk]; if(!p) return;
+      rows.push({day:day, ticker:tk, status:p.status||'', score:p.score||0,
+                 price:p.price||0, r:(p.returns||{})});
+    });
+  });
+  if(!rows.length){
+    document.getElementById('cards').innerHTML =
+      '<div class="empty">No picks logged yet &mdash; the first entries appear after the next market close.</div>';
+    document.getElementById('pbody').innerHTML =
+      '<tr><td colspan="8" class="empty">No history yet.</td></tr>';
+    return;
+  }
+  // Summary per status/window
+  var cards='';
+  ['PRIMED','BREAKOUT'].forEach(function(st){
+    var sub = rows.filter(function(x){return x.status===st;});
+    if(!sub.length) return;
+    var tr='';
+    ['1w','2w','1m'].forEach(function(w){
+      var m = sub.map(function(x){return x.r[w];}).filter(function(v){return v!=null;});
+      if(!m.length){ tr+='<tr><td>'+w+'</td><td colspan="3" class="na">not matured</td></tr>'; return; }
+      var wins = m.filter(function(v){return v>0;}).length;
+      var avg = m.reduce(function(a,b){return a+b;},0)/m.length;
+      tr+='<tr><td>'+w+'</td><td>'+m.length+'</td><td>'+Math.round(wins/m.length*100)+'%</td><td>'+fmt(avg)+'</td></tr>';
+    });
+    cards+='<div class="scard"><h3><span class="badge '+st+'">'+st+'</span> &nbsp;'+sub.length+' signals</h3>'
+         +'<table><tr><th>win</th><th>n</th><th>win rate</th><th>avg</th></tr>'+tr+'</table></div>';
+  });
+  document.getElementById('cards').innerHTML = cards ||
+    '<div class="empty">No PRIMED/BREAKOUT signals logged yet.</div>';
+  // Picks table, newest first
+  rows.sort(function(a,b){ return a.day<b.day?1:a.day>b.day?-1:(b.score-a.score); });
+  document.getElementById('pbody').innerHTML = rows.slice(0,300).map(function(x){
+    return '<tr><td>'+x.day+'</td><td><strong>'+x.ticker+'</strong></td>'
+      +'<td><span class="badge '+x.status+'">'+x.status+'</span></td>'
+      +'<td>'+x.score+'</td><td>$'+(+x.price).toFixed(2)+'</td>'
+      +'<td>'+fmt(x.r['1w'])+'</td><td>'+fmt(x.r['2w'])+'</td><td>'+fmt(x.r['1m'])+'</td></tr>';
+  }).join('');
+});
+</script>
+</body>
+</html>"""
+
+@app.route('/analytics')
+def analytics():
+    return (ANALYTICS_HTML
+            .replace('__CFG__', json.dumps(FIREBASE_CONFIG))
+            .replace('__BANNER__', STAGING_BANNER))
 
 
 if __name__ == '__main__':
