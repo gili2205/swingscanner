@@ -29,9 +29,8 @@ FIREBASE_CONFIGS = {
     }
 }
 
-FLASK_ENV = os.environ.get("FLASK_ENV", "production")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod")
-FIREBASE_CONFIG = FIREBASE_CONFIGS.get(FLASK_ENV, FIREBASE_CONFIGS["production"])
+FIREBASE_CONFIG = FIREBASE_CONFIGS["staging" if ENVIRONMENT == "staging" else "production"]
 
 STAGING_BANNER = ""
 if ENVIRONMENT == "staging":
