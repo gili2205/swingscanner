@@ -476,55 +476,70 @@ def score_swing(ticker: str, df: pd.DataFrame, live_price: float = None,
         # ════════════════════════════════════════════════════════════════
         # PRE-BREAKOUT SWING SCORING (0–100)
         # ════════════════════════════════════════════════════════════════
-        score = 0
+        # Each component's points are kept in `parts` so the UI can show an
+        # honest breakdown (server-computed — no client-side re-derivation).
+        parts = {}
 
         # 1. Volatility squeeze — 30 (tighter width percentile = more coiled)
-        if   squeeze_pct <= 5:  score += W["squeeze_5"]
-        elif squeeze_pct <= 10: score += W["squeeze_10"]
-        elif squeeze_pct <= 20: score += W["squeeze_20"]
-        elif squeeze_pct <= 35: score += W["squeeze_35"]
-        elif squeeze_pct <= 50: score += W["squeeze_50"]
+        if   squeeze_pct <= 5:  parts["squeeze"] = W["squeeze_5"]
+        elif squeeze_pct <= 10: parts["squeeze"] = W["squeeze_10"]
+        elif squeeze_pct <= 20: parts["squeeze"] = W["squeeze_20"]
+        elif squeeze_pct <= 35: parts["squeeze"] = W["squeeze_35"]
+        elif squeeze_pct <= 50: parts["squeeze"] = W["squeeze_50"]
+        else:                   parts["squeeze"] = 0
 
         # 2. Volume dry-up — 20 (recent volume contracted vs the base)
-        if   dryup_ratio <= 0.50: score += W["dryup_50"]
-        elif dryup_ratio <= 0.65: score += W["dryup_65"]
-        elif dryup_ratio <= 0.80: score += W["dryup_80"]
-        elif dryup_ratio <= 1.00: score += W["dryup_100"]
+        if   dryup_ratio <= 0.50: parts["dryup"] = W["dryup_50"]
+        elif dryup_ratio <= 0.65: parts["dryup"] = W["dryup_65"]
+        elif dryup_ratio <= 0.80: parts["dryup"] = W["dryup_80"]
+        elif dryup_ratio <= 1.00: parts["dryup"] = W["dryup_100"]
+        else:                     parts["dryup"] = 0
 
-        # 3. Proximity to breakout pivot — 20 (just below pivot = primed)
-        if   0 <= dist_to_pivot <= 2:  score += W["pivot_2"]
-        elif dist_to_pivot <= 4:       score += W["pivot_4"]
-        elif dist_to_pivot <= 7:       score += W["pivot_7"]
-        elif dist_to_pivot <= 12:      score += W["pivot_12"]
+        # 3. Proximity to breakout pivot — 20 (coiled a bit below = primed)
+        if   0 <= dist_to_pivot <= 2:  parts["pivot"] = W["pivot_2"]
+        elif dist_to_pivot <= 4:       parts["pivot"] = W["pivot_4"]
+        elif dist_to_pivot <= 7:       parts["pivot"] = W["pivot_7"]
+        elif dist_to_pivot <= 12:      parts["pivot"] = W["pivot_12"]
         elif broke_out and dist_to_pivot >= -3:  # fresh breakout (just crossed)
-            score += W["pivot_7"]
+            parts["pivot"] = W["pivot_7"]
+        else:
+            parts["pivot"] = 0
 
         # 4. Trend stack / Stage-2 uptrend — 15
         if (price > ema20 and sma50 and ema20 > sma50 and sma200 and sma50 > sma200):
-            score += W["trend_full"]
+            parts["trend"] = W["trend_full"]
         elif sma50 and sma200 and price > sma50 > sma200:
-            score += W["trend_mid"]
+            parts["trend"] = W["trend_mid"]
         elif sma200 and above_sma200:
-            score += W["trend_weak"]
+            parts["trend"] = W["trend_weak"]
+        else:
+            parts["trend"] = 0
 
         # 5. Base tightness — proximity to EMA20 support — 10
-        if   ema20_dist <= 3:  score += W["base_3"]
-        elif ema20_dist <= 6:  score += W["base_6"]
-        elif ema20_dist <= 10: score += W["base_10"]
+        if   ema20_dist <= 3:  parts["base"] = W["base_3"]
+        elif ema20_dist <= 6:  parts["base"] = W["base_6"]
+        elif ema20_dist <= 10: parts["base"] = W["base_10"]
+        else:                  parts["base"] = 0
 
         # 6. Constructive RSI — 5 (room to run, not overbought)
-        if   50 <= rsi <= 65:                    score += W["rsi_sweet"]
-        elif (45 <= rsi < 50) or (65 < rsi <= 70): score += W["rsi_ok"]
+        if   50 <= rsi <= 65:                      parts["rsi"] = W["rsi_sweet"]
+        elif (45 <= rsi < 50) or (65 < rsi <= 70): parts["rsi"] = W["rsi_ok"]
+        else:                                      parts["rsi"] = 0
+
+        score = sum(parts.values())
 
         # 7. Penalties — punish chasing / wrong stage
+        pen = 0
         if ema9_dist_pct > 15:
-            score = max(0, score - W["penalty_extended"])
+            pen += W["penalty_extended"]
         if rsi > 75:
-            score = max(0, score - W["penalty_overbought"])
+            pen += W["penalty_overbought"]
         if not is_crypto and sma200 is not None and not above_sma200:
-            score = max(0, score - W["penalty_downtrend"])
+            pen += W["penalty_downtrend"]
         if dist_to_pivot > 15:
-            score = max(0, score - W["penalty_far_pivot"])
+            pen += W["penalty_far_pivot"]
+        parts["penalty"] = -min(pen, score)   # what was actually subtracted
+        score = max(0, score - pen)
 
         score = min(100, max(0, score))
 
@@ -577,6 +592,7 @@ def score_swing(ticker: str, df: pd.DataFrame, live_price: float = None,
             "rsi":             rsi,
             "ema9_dist_pct":   ema9_dist_pct,
             "ema20_dist":      ema20_dist,
+            "score_parts":     parts,
             "rank":            0,
             "scanned_at":      datetime.now(ET).isoformat(),
         }
