@@ -185,23 +185,35 @@ def _hardcoded_fallback():
         "XOM","CVX","HD","NKE","DIS","BA","GE","CAT","MMM","IBM"]
 
 # ── History cache ──────────────────────────────────────────────────────────────
-def load_cache():
+def load_cache(allow_partial=False):
     if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE,"rb") as f: cache = pickle.load(f)
+        try:
+            with open(CACHE_FILE,"rb") as f: cache = pickle.load(f)
+        except Exception as e:
+            log.warning(f"Cache unreadable ({e}) — ignoring"); return None
         if cache.get("date") == date.today():
-            log.info(f"Loaded today cache: {len(cache.get('data',{}))} stocks")
-            return cache.get("data",{})
+            if cache.get("complete", True):
+                log.info(f"Loaded today cache: {len(cache.get('data',{}))} stocks")
+                return cache.get("data",{})
+            if allow_partial:
+                log.info(f"Partial cache from an interrupted download: "
+                         f"{len(cache.get('data',{}))} stocks — will resume")
+                return cache.get("data",{})
     return None
 
-def save_cache(data):
-    with open(CACHE_FILE,"wb") as f: pickle.dump({"date":date.today(),"data":data},f)
-    log.info(f"Cache saved: {len(data)} stocks")
+def save_cache(data, complete=True):
+    with open(CACHE_FILE,"wb") as f:
+        pickle.dump({"date":date.today(),"data":data,"complete":complete},f)
+    if complete: log.info(f"Cache saved: {len(data)} stocks")
 
-def download_history(universe):
-    log.info(f"=== DAILY HISTORY DOWNLOAD: {len(universe)} stocks ===")
-    history = {}
-    # Include crypto
-    all_tickers = list(universe) + CRYPTO_TICKERS
+def download_history(universe, resume=None):
+    # Resume support: a restart mid-download used to lose everything (cache
+    # was only written at the end). Now we checkpoint every 40 chunks and
+    # skip tickers already fetched today.
+    history = dict(resume) if resume else {}
+    all_tickers = [t for t in list(universe) + CRYPTO_TICKERS if t not in history]
+    log.info(f"=== DAILY HISTORY DOWNLOAD: {len(all_tickers)} stocks"
+             + (f" (resuming, {len(history)} cached) ===" if history else " ==="))
     chunks = [all_tickers[i:i+20] for i in range(0,len(all_tickers),20)]
     total  = len(chunks)
     for i, chunk in enumerate(chunks):
@@ -220,6 +232,8 @@ def download_history(universe):
             if (i+1)%10==0 or (i+1)==total:
                 pct = round((i+1)/total*100)
                 log.info(f"  Progress: {i+1}/{total} ({pct}%) | {len(history)} stocks")
+            if (i+1)%40==0:
+                save_cache(history, complete=False)   # checkpoint
             try:
                 ref.child('download_progress').set({'loaded':len(history),'total':len(all_tickers),
                     'pct':round(len(history)/len(all_tickers)*100) if len(all_tickers)>0 else 0})
@@ -696,8 +710,10 @@ def main():
 
     history = load_cache()
     if not history:
-        log.info("No cache — downloading history...")
-        history = download_history(universe)
+        partial = load_cache(allow_partial=True)
+        log.info("No complete cache — downloading history"
+                 + (" (resuming from checkpoint)..." if partial else "..."))
+        history = download_history(universe, resume=partial)
 
     log.info(f"Ready: {len(history)} stocks. Starting 60s scan loop.")
     last_download_date = date.today()
