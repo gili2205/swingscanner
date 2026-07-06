@@ -713,6 +713,7 @@ def log_history(results, now_et):
             "dryup":       r["dryup_ratio"],
             "dist_pivot":  r["dist_to_pivot"],
             "pivot":       r["pivot"],
+            "source":      "live",
             "logged_at":   now_et.isoformat(),
             "returns":     {},
         }

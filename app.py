@@ -1249,6 +1249,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .badge.PRIMED{background:#3d3611;color:var(--gold);}
 .badge.BREAKOUT{background:#1a3d2b;color:var(--green);}
 .empty{color:var(--muted);text-align:center;padding:60px 0;}
+.grouphead{font-size:12px;font-weight:700;letter-spacing:.8px;margin:4px 2px 10px;color:var(--green);}
+.badge.BT{background:var(--bg3);color:var(--muted);}
+.badge.LIVE{background:#1a3d2b;color:var(--green);}
 .note{font-size:11px;color:var(--muted);margin:10px 2px 18px;}
 </style>
 </head>
@@ -1259,13 +1262,14 @@ __BANNER__
   <div class="nav-pills"><a class="nav-pill" href="/">&#128202; Dashboard</a><a class="nav-pill active" href="/analytics">&#128200; Analytics</a></div>
 </div>
 <div class="wrap">
-  <div class="note">Every trading day after the close, the scanner logs its PRIMED and BREAKOUT signals here.
-  Forward returns fill in as they mature (1w = 5, 2w = 10, 1m = 21 trading days).
-  Backtest reference: PRIMED ~62% win at 1m, avg +2.4%.</div>
+  <div class="note">Every trading day after the close, the scanner logs its PRIMED and BREAKOUT signals here;
+  forward returns fill in as they mature (1w = 5, 2w = 10, 1m = 21 trading days).
+  BT rows are simulated signals from the 180-day backtest of the current scoring model \u2014
+  live rows are what the scanner actually surfaced.</div>
   <div class="cards" id="cards"><div class="empty">Loading...</div></div>
   <div class="picks"><table id="ptable"><thead>
-    <tr><th>Date</th><th>Ticker</th><th>Status</th><th>Score</th><th>Entry</th><th>1w</th><th>2w</th><th>1m</th></tr>
-  </thead><tbody id="pbody"><tr><td colspan="8" class="empty">Loading history...</td></tr></tbody></table></div>
+    <tr><th>Date</th><th>Src</th><th>Ticker</th><th>Status</th><th>Score</th><th>Entry</th><th>1w</th><th>2w</th><th>1m</th></tr>
+  </thead><tbody id="pbody"><tr><td colspan="9" class="empty">Loading history...</td></tr></tbody></table></div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -1285,38 +1289,51 @@ fdb.ref('/swing_scanner/history').once('value', function(snap){
     Object.keys(picks).forEach(function(tk){
       var p = picks[tk]; if(!p) return;
       rows.push({day:day, ticker:tk, status:p.status||'', score:p.score||0,
-                 price:p.price||0, r:(p.returns||{})});
+                 price:p.price||0, source:p.source||'live', r:(p.returns||{})});
     });
   });
   if(!rows.length){
     document.getElementById('cards').innerHTML =
       '<div class="empty">No picks logged yet &mdash; the first entries appear after the next market close.</div>';
     document.getElementById('pbody').innerHTML =
-      '<tr><td colspan="8" class="empty">No history yet.</td></tr>';
+      '<tr><td colspan="9" class="empty">No history yet.</td></tr>';
     return;
   }
-  // Summary per status/window
-  var cards='';
-  ['PRIMED','BREAKOUT'].forEach(function(st){
-    var sub = rows.filter(function(x){return x.status===st;});
-    if(!sub.length) return;
-    var tr='';
-    ['1w','2w','1m'].forEach(function(w){
-      var m = sub.map(function(x){return x.r[w];}).filter(function(v){return v!=null;});
-      if(!m.length){ tr+='<tr><td>'+w+'</td><td colspan="3" class="na">not matured</td></tr>'; return; }
-      var wins = m.filter(function(v){return v>0;}).length;
-      var avg = m.reduce(function(a,b){return a+b;},0)/m.length;
-      tr+='<tr><td>'+w+'</td><td>'+m.length+'</td><td>'+Math.round(wins/m.length*100)+'%</td><td>'+fmt(avg)+'</td></tr>';
+  // Summary per source (live vs backtest), per status/window
+  function statusCards(pool){
+    var cards='';
+    ['PRIMED','BREAKOUT'].forEach(function(st){
+      var sub = pool.filter(function(x){return x.status===st;});
+      if(!sub.length) return;
+      var tr='';
+      ['1w','2w','1m'].forEach(function(w){
+        var m = sub.map(function(x){return x.r[w];}).filter(function(v){return v!=null;});
+        if(!m.length){ tr+='<tr><td>'+w+'</td><td colspan="3" class="na">not matured</td></tr>'; return; }
+        var wins = m.filter(function(v){return v>0;}).length;
+        var avg = m.reduce(function(a,b){return a+b;},0)/m.length;
+        tr+='<tr><td>'+w+'</td><td>'+m.length+'</td><td>'+Math.round(wins/m.length*100)+'%</td><td>'+fmt(avg)+'</td></tr>';
+      });
+      cards+='<div class="scard"><h3><span class="badge '+st+'">'+st+'</span> &nbsp;'+sub.length+' signals</h3>'
+           +'<table><tr><th>win</th><th>n</th><th>win rate</th><th>avg</th></tr>'+tr+'</table></div>';
     });
-    cards+='<div class="scard"><h3><span class="badge '+st+'">'+st+'</span> &nbsp;'+sub.length+' signals</h3>'
-         +'<table><tr><th>win</th><th>n</th><th>win rate</th><th>avg</th></tr>'+tr+'</table></div>';
-  });
-  document.getElementById('cards').innerHTML = cards ||
-    '<div class="empty">No PRIMED/BREAKOUT signals logged yet.</div>';
+    return cards;
+  }
+  var live = rows.filter(function(x){return x.source!=='backtest';});
+  var bt   = rows.filter(function(x){return x.source==='backtest';});
+  var html='';
+  html += '<div class="grouphead">&#128994; LIVE SIGNALS ('+live.length+')</div>';
+  html += '<div class="cards">'+(statusCards(live)||'<div class="empty" style="padding:20px 0">No live picks yet \u2014 they are logged after each market close.</div>')+'</div>';
+  if(bt.length){
+    html += '<div class="grouphead" style="color:var(--muted)">&#128202; BACKTEST \u2014 SIMULATED ('+bt.length+')</div>';
+    html += '<div class="cards">'+statusCards(bt)+'</div>';
+  }
+  document.getElementById('cards').innerHTML = html;
+  document.getElementById('cards').className = '';
   // Picks table, newest first
   rows.sort(function(a,b){ return a.day<b.day?1:a.day>b.day?-1:(b.score-a.score); });
-  document.getElementById('pbody').innerHTML = rows.slice(0,300).map(function(x){
-    return '<tr><td>'+x.day+'</td><td><strong>'+x.ticker+'</strong></td>'
+  document.getElementById('pbody').innerHTML = rows.slice(0,500).map(function(x){
+    var srcB = x.source==='backtest' ? '<span class="badge BT">BT</span>' : '<span class="badge LIVE">LIVE</span>';
+    return '<tr><td>'+x.day+'</td><td>'+srcB+'</td><td><strong>'+x.ticker+'</strong></td>'
       +'<td><span class="badge '+x.status+'">'+x.status+'</span></td>'
       +'<td>'+x.score+'</td><td>$'+(+x.price).toFixed(2)+'</td>'
       +'<td>'+fmt(x.r['1w'])+'</td><td>'+fmt(x.r['2w'])+'</td><td>'+fmt(x.r['1m'])+'</td></tr>';
