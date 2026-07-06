@@ -1232,7 +1232,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .nav-pills{display:flex;gap:6px;}
 .nav-pill{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border);color:var(--muted);background:var(--bg3);}
 .nav-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
-.wrap{max-width:1100px;margin:0 auto;padding:20px 24px;}
+.wrap{max-width:1150px;margin:0 auto;padding:20px 24px;}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.tlabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.wbtn{padding:5px 16px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--border);color:var(--muted);background:var(--bg3);cursor:pointer;}
+.wbtn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.kpi .kl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+.kpi .kv{font-size:24px;font-weight:700;line-height:1.1;}
+.kpi .ks{font-size:11px;color:var(--muted);margin-top:4px;}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:22px;}
 .scard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;}
 .scard h3{font-size:12px;letter-spacing:.5px;margin-bottom:10px;}
@@ -1243,16 +1252,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pos{color:var(--green);font-weight:600;}.neg{color:var(--red);font-weight:600;}.na{color:var(--muted);}
 .picks{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;}
 .picks table{width:100%;font-size:12px;border-collapse:collapse;}
-.picks th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.picks th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
+.picks th:hover{color:var(--text);}
+.picks th .arr{color:var(--blue);margin-left:3px;}
 .picks td{padding:7px 8px;border-bottom:1px solid #2a2f4233;}
 .badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;}
 .badge.PRIMED{background:#3d3611;color:var(--gold);}
 .badge.BREAKOUT{background:#1a3d2b;color:var(--green);}
-.empty{color:var(--muted);text-align:center;padding:60px 0;}
-.grouphead{font-size:12px;font-weight:700;letter-spacing:.8px;margin:4px 2px 10px;color:var(--green);}
 .badge.BT{background:var(--bg3);color:var(--muted);}
 .badge.LIVE{background:#1a3d2b;color:var(--green);}
+.empty{color:var(--muted);text-align:center;padding:60px 0;}
 .note{font-size:11px;color:var(--muted);margin:10px 2px 18px;}
+.grouphead{font-size:12px;font-weight:700;letter-spacing:.8px;margin:4px 2px 10px;color:var(--green);}
 </style>
 </head>
 <body>
@@ -1262,14 +1273,21 @@ __BANNER__
   <div class="nav-pills"><a class="nav-pill" href="/">&#128202; Dashboard</a><a class="nav-pill active" href="/analytics">&#128200; Analytics</a></div>
 </div>
 <div class="wrap">
-  <div class="note">Every trading day after the close, the scanner logs its PRIMED and BREAKOUT signals here;
-  forward returns fill in as they mature (1w = 5, 2w = 10, 1m = 21 trading days).
-  BT rows are simulated signals from the 180-day backtest of the current scoring model \u2014
-  live rows are what the scanner actually surfaced.</div>
-  <div class="cards" id="cards"><div class="empty">Loading...</div></div>
-  <div class="picks"><table id="ptable"><thead>
-    <tr><th>Date</th><th>Src</th><th>Ticker</th><th>Status</th><th>Score</th><th>Entry</th><th>1w</th><th>2w</th><th>1m</th></tr>
-  </thead><tbody id="pbody"><tr><td colspan="9" class="empty">Loading history...</td></tr></tbody></table></div>
+  <div class="note">The scanner logs its PRIMED and BREAKOUT signals after each market close; forward returns
+  fill in as they mature (1w = 5, 2w = 10, 1m = 21 trading days). BT rows are simulated signals from the
+  180-day backtest of the current scoring model &mdash; LIVE rows are what the scanner actually surfaced.</div>
+
+  <div class="toolbar">
+    <span class="tlabel">Return window:</span>
+    <button class="wbtn" data-w="1w" onclick="setWin('1w')">1 week</button>
+    <button class="wbtn" data-w="2w" onclick="setWin('2w')">2 weeks</button>
+    <button class="wbtn on" data-w="1m" onclick="setWin('1m')">1 month</button>
+  </div>
+
+  <div class="kpis" id="kpis"><div class="empty">Loading...</div></div>
+  <div id="cards"><div class="empty">Loading...</div></div>
+  <div class="picks"><table id="ptable"><thead><tr id="phead"></tr></thead>
+    <tbody id="pbody"><tr><td colspan="9" class="empty">Loading history...</td></tr></tbody></table></div>
 </div>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -1278,66 +1296,131 @@ var CFG = __CFG__;
 firebase.initializeApp(CFG);
 var fdb = firebase.database();
 
+var allRows = [], win = '1m', sortKey = 'day', sortDir = -1;
+
+var COLS = [
+  ['day','Date'], ['source','Src'], ['ticker','Ticker'], ['status','Status'],
+  ['score','Score'], ['price','Entry'], ['1w','1w'], ['2w','2w'], ['1m','1m']
+];
+
 function fmt(v){ if(v==null) return '<span class="na">&mdash;</span>';
   var c=v>=0?'pos':'neg'; return '<span class="'+c+'">'+(v>=0?'+':'')+v.toFixed(2)+'%</span>'; }
 
-fdb.ref('/swing_scanner/history').once('value', function(snap){
-  var hist = snap.val() || {};
-  var rows = [];
-  Object.keys(hist).forEach(function(day){
-    var picks = hist[day]; if(!picks) return;
-    Object.keys(picks).forEach(function(tk){
-      var p = picks[tk]; if(!p) return;
-      rows.push({day:day, ticker:tk, status:p.status||'', score:p.score||0,
-                 price:p.price||0, source:p.source||'live', r:(p.returns||{})});
+function setWin(w){
+  win = w;
+  document.querySelectorAll('.wbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.w===w); });
+  renderKPIs(); renderCards();
+}
+
+function setSort(key){
+  if (sortKey===key) sortDir = -sortDir; else {{ sortKey=key; sortDir=-1; }}
+  renderTable();
+}
+
+function renderKPIs(){
+  var m = allRows.map(function(x){ return {v:x.r[win], t:x.ticker, d:x.day, src:x.source}; })
+                 .filter(function(x){ return x.v!=null; });
+  var el = document.getElementById('kpis');
+  if(!m.length){ el.innerHTML='<div class="empty">No matured '+win+' returns yet.</div>'; return; }
+  var wins  = m.filter(function(x){return x.v>0;});
+  var losses= m.filter(function(x){return x.v<=0;});
+  var avgW  = wins.length  ? wins.reduce(function(a,b){return a+b.v;},0)/wins.length : 0;
+  var avgL  = losses.length? losses.reduce(function(a,b){return a+b.v;},0)/losses.length : 0;
+  var avg   = m.reduce(function(a,b){return a+b.v;},0)/m.length;
+  var best  = m.reduce(function(a,b){return b.v>a.v?b:a;});
+  var worst = m.reduce(function(a,b){return b.v<a.v?b:a;});
+  var pf    = losses.length && avgL!==0 ? (wins.reduce(function(a,b){return a+b.v;},0) / Math.abs(losses.reduce(function(a,b){return a+b.v;},0))) : null;
+  function box(lbl, val, cls, sub){
+    return '<div class="kpi"><div class="kl">'+lbl+'</div><div class="kv '+(cls||'')+'">'+val+'</div>'+(sub?'<div class="ks">'+sub+'</div>':'')+'</div>';
+  }
+  el.innerHTML =
+    box('Win rate', Math.round(wins.length/m.length*100)+'%', wins.length/m.length>=0.55?'pos':'', m.length+' matured signals')
+   + box('Avg return', (avg>=0?'+':'')+avg.toFixed(2)+'%', avg>=0?'pos':'neg', 'per signal, '+win)
+   + box('Avg win', '+'+avgW.toFixed(2)+'%', 'pos', wins.length+' winners')
+   + box('Avg loss', avgL.toFixed(2)+'%', 'neg', losses.length+' losers')
+   + box('Best', best.t, 'pos', '+'+best.v.toFixed(1)+'% &middot; '+best.d)
+   + box('Worst', worst.t, 'neg', worst.v.toFixed(1)+'% &middot; '+worst.d)
+   + (pf!=null ? box('Profit factor', pf.toFixed(2), pf>=1.5?'pos':pf>=1?'':'neg', 'gross wins / gross losses') : '');
+}
+
+function statusCards(pool){
+  var cards='';
+  ['PRIMED','BREAKOUT'].forEach(function(st){
+    var sub = pool.filter(function(x){return x.status===st;});
+    if(!sub.length) return;
+    var tr='';
+    ['1w','2w','1m'].forEach(function(w){
+      var m = sub.map(function(x){return x.r[w];}).filter(function(v){return v!=null;});
+      if(!m.length){ tr+='<tr><td>'+w+'</td><td colspan="3" class="na">not matured</td></tr>'; return; }
+      var wn = m.filter(function(v){return v>0;}).length;
+      var avg = m.reduce(function(a,b){return a+b;},0)/m.length;
+      tr+='<tr><td>'+w+'</td><td>'+m.length+'</td><td>'+Math.round(wn/m.length*100)+'%</td><td>'+fmt(avg)+'</td></tr>';
     });
+    cards+='<div class="scard"><h3><span class="badge '+st+'">'+st+'</span> &nbsp;'+sub.length+' signals</h3>'
+         +'<table><tr><th>win</th><th>n</th><th>win rate</th><th>avg</th></tr>'+tr+'</table></div>';
   });
-  if(!rows.length){
-    document.getElementById('cards').innerHTML =
-      '<div class="empty">No picks logged yet &mdash; the first entries appear after the next market close.</div>';
-    document.getElementById('pbody').innerHTML =
-      '<tr><td colspan="9" class="empty">No history yet.</td></tr>';
-    return;
-  }
-  // Summary per source (live vs backtest), per status/window
-  function statusCards(pool){
-    var cards='';
-    ['PRIMED','BREAKOUT'].forEach(function(st){
-      var sub = pool.filter(function(x){return x.status===st;});
-      if(!sub.length) return;
-      var tr='';
-      ['1w','2w','1m'].forEach(function(w){
-        var m = sub.map(function(x){return x.r[w];}).filter(function(v){return v!=null;});
-        if(!m.length){ tr+='<tr><td>'+w+'</td><td colspan="3" class="na">not matured</td></tr>'; return; }
-        var wins = m.filter(function(v){return v>0;}).length;
-        var avg = m.reduce(function(a,b){return a+b;},0)/m.length;
-        tr+='<tr><td>'+w+'</td><td>'+m.length+'</td><td>'+Math.round(wins/m.length*100)+'%</td><td>'+fmt(avg)+'</td></tr>';
-      });
-      cards+='<div class="scard"><h3><span class="badge '+st+'">'+st+'</span> &nbsp;'+sub.length+' signals</h3>'
-           +'<table><tr><th>win</th><th>n</th><th>win rate</th><th>avg</th></tr>'+tr+'</table></div>';
-    });
-    return cards;
-  }
-  var live = rows.filter(function(x){return x.source!=='backtest';});
-  var bt   = rows.filter(function(x){return x.source==='backtest';});
+  return cards;
+}
+
+function renderCards(){
+  var live = allRows.filter(function(x){return x.source!=='backtest';});
+  var bt   = allRows.filter(function(x){return x.source==='backtest';});
   var html='';
   html += '<div class="grouphead">&#128994; LIVE SIGNALS ('+live.length+')</div>';
-  html += '<div class="cards">'+(statusCards(live)||'<div class="empty" style="padding:20px 0">No live picks yet \u2014 they are logged after each market close.</div>')+'</div>';
+  html += '<div class="cards">'+(statusCards(live)||'<div class="empty" style="padding:20px 0">No live picks yet &mdash; they are logged after each market close.</div>')+'</div>';
   if(bt.length){
-    html += '<div class="grouphead" style="color:var(--muted)">&#128202; BACKTEST \u2014 SIMULATED ('+bt.length+')</div>';
+    html += '<div class="grouphead" style="color:var(--muted)">&#128202; BACKTEST &mdash; SIMULATED ('+bt.length+')</div>';
     html += '<div class="cards">'+statusCards(bt)+'</div>';
   }
   document.getElementById('cards').innerHTML = html;
-  document.getElementById('cards').className = '';
-  // Picks table, newest first
-  rows.sort(function(a,b){ return a.day<b.day?1:a.day>b.day?-1:(b.score-a.score); });
+}
+
+function renderTable(){
+  var head='';
+  COLS.forEach(function(c){
+    var arr = sortKey===c[0] ? '<span class="arr">'+(sortDir<0?'&#9660;':'&#9650;')+'</span>' : '';
+    head += '<th onclick="setSort(\''+c[0]+'\')">'+c[1]+arr+'</th>';
+  });
+  document.getElementById('phead').innerHTML = head;
+
+  var rows = allRows.slice();
+  rows.sort(function(a,b){
+    var va, vb;
+    if(sortKey==='1w'||sortKey==='2w'||sortKey==='1m'){ va=a.r[sortKey]; vb=b.r[sortKey]; }
+    else {{ va=a[sortKey]; vb=b[sortKey]; }}
+    var aNull = va==null, bNull = vb==null;
+    if(aNull&&bNull) return 0; if(aNull) return 1; if(bNull) return -1;   // nulls last
+    if(va<vb) return 1*sortDir; if(va>vb) return -1*sortDir;
+    return 0;
+  });
   document.getElementById('pbody').innerHTML = rows.slice(0,500).map(function(x){
     var srcB = x.source==='backtest' ? '<span class="badge BT">BT</span>' : '<span class="badge LIVE">LIVE</span>';
     return '<tr><td>'+x.day+'</td><td>'+srcB+'</td><td><strong>'+x.ticker+'</strong></td>'
       +'<td><span class="badge '+x.status+'">'+x.status+'</span></td>'
       +'<td>'+x.score+'</td><td>$'+(+x.price).toFixed(2)+'</td>'
       +'<td>'+fmt(x.r['1w'])+'</td><td>'+fmt(x.r['2w'])+'</td><td>'+fmt(x.r['1m'])+'</td></tr>';
-  }).join('');
+  }).join('') || '<tr><td colspan="9" class="empty">No history yet.</td></tr>';
+}
+
+fdb.ref('/swing_scanner/history').once('value', function(snap){
+  var hist = snap.val() || {};
+  Object.keys(hist).forEach(function(day){
+    var picks = hist[day]; if(!picks) return;
+    Object.keys(picks).forEach(function(tk){
+      var p = picks[tk]; if(!p) return;
+      allRows.push({day:day, ticker:tk, status:p.status||'', score:p.score||0,
+                    price:p.price||0, source:p.source||'live', r:(p.returns||{})});
+    });
+  });
+  if(!allRows.length){
+    document.getElementById('kpis').innerHTML='';
+    document.getElementById('cards').innerHTML =
+      '<div class="empty">No picks logged yet &mdash; the first entries appear after the next market close.</div>';
+    document.getElementById('pbody').innerHTML =
+      '<tr><td colspan="9" class="empty">No history yet.</td></tr>';
+    return;
+  }
+  renderKPIs(); renderCards(); renderTable();
 });
 </script>
 </body>
