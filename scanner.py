@@ -61,7 +61,7 @@ FUNDS_TTL = 6 * 3600
 # NOTE: deliberately NO minimum-RVOL gate. Pre-breakout stocks are QUIET —
 # volume contracts during the coil and only expands at the breakout itself.
 # Gating on RVOL would filter out exactly the setups we want to catch early.
-MIN_PRICE       = 3.0
+MIN_PRICE       = 10.0           # 180d backtest: sub-$10 signals had negative edge
 MAX_PRICE       = 600.0          # loosened from 150 to widen the universe
 MIN_DOLLAR_VOL  = 5_000_000      # liquidity: must be tradeable ($/day)
 PIVOT_LOOKBACK  = 50             # trading days for the breakout pivot high
@@ -74,28 +74,31 @@ CRYPTO_TICKERS = [
     "BCH-USD", "UNI-USD", "ATOM-USD", "XLM-USD", "ICP-USD",
 ]
 
-# ── Scoring weights ───────────────────────────────────────────────────────────
 # ── Scoring weights — PRE-BREAKOUT swing model ────────────────────────────────
 # Philosophy: reward the COILED SPRING, not the stock that already popped.
 # A primed setup = tight volatility squeeze + volume dry-up + price parked
-# just under a pivot, inside an uptrend. Points total 100; penalties subtract.
+# a bit under a pivot, inside an uptrend. Points total 100; penalties subtract.
+# Weights tuned 2026-07-06 from a 180-day full-universe backtest (5,798
+# signals): edge concentrates in squeeze ≤10th pct, dry-up 0.50–0.65,
+# and 2–7% below pivot; being AT the pivot (0–2%) underperformed.
 DEFAULT_WEIGHTS = {
-    # 1. Volatility squeeze (max 30) — tighter BB width vs its history = coiled
+    # 1. Volatility squeeze (max 30) — only the tightest decile pays
     "squeeze_5":       30,
     "squeeze_10":      25,
-    "squeeze_20":      18,
-    "squeeze_35":      10,
-    "squeeze_50":       4,
-    # 2. Volume dry-up (max 20) — recent vol contracted vs base = sellers gone
-    "dryup_50":        20,
-    "dryup_65":        15,
-    "dryup_80":        10,
-    "dryup_100":        5,
-    # 3. Proximity to breakout pivot (max 20) — just below pivot = primed
-    "pivot_2":         20,
-    "pivot_4":         15,
-    "pivot_7":          9,
-    "pivot_12":         3,
+    "squeeze_20":      10,
+    "squeeze_35":       4,
+    "squeeze_50":       2,
+    # 2. Volume dry-up (max 20) — 0.50–0.65 was the strongest single factor
+    "dryup_50":        18,
+    "dryup_65":        20,
+    "dryup_80":         6,
+    "dryup_100":        3,
+    # 3. Proximity to breakout pivot (max 20) — buy the coil EARLY (2–7%),
+    #    not at resistance
+    "pivot_2":         12,
+    "pivot_4":         20,
+    "pivot_7":         16,
+    "pivot_12":         6,
     # 4. Trend stack / Stage-2 uptrend (max 15)
     "trend_full":      15,   # price > ema20 > sma50 > sma200
     "trend_mid":       10,   # price > sma50 > sma200
@@ -112,8 +115,9 @@ DEFAULT_WEIGHTS = {
     "penalty_overbought":  12,   # RSI > 75 = already ran
     "penalty_downtrend":   18,   # below SMA200 = wrong stage
     "penalty_far_pivot":    8,   # >15% below pivot = not near a breakout
-    # Score thresholds
-    "threshold_primed":   65,
+    # Score thresholds — PRIMED means top-of-book (backtest: score≥75 carries
+    # the edge; 65 admitted ~17 signals/day with barely any)
+    "threshold_primed":   75,
     "threshold_coiling":  48,
     "threshold_watch":    32,
 }
